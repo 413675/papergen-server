@@ -7,15 +7,11 @@ import com.papergen.generate.constant.AiConstant;
 import com.papergen.generate.constant.HttpStatus;
 import com.papergen.generate.context.PapergenContext;
 import com.papergen.generate.domain.entity.AiChatMessage;
-import com.papergen.generate.domain.entity.AiModelConfig;
-import com.papergen.generate.domain.params.AiModelConfigParam;
 import com.papergen.generate.domain.vo.AiChatMessageVO;
 import com.papergen.generate.domain.vo.AiChatVO;
-import com.papergen.generate.domain.vo.AiModelConfigVO;
 import com.papergen.generate.domain.vo.PaperImportVO;
 import com.papergen.generate.exception.BusinessException;
 import com.papergen.generate.service.AiChatMessageService;
-import com.papergen.generate.service.AiModelConfigService;
 import com.papergen.generate.service.AiPaperService;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,28 +40,39 @@ public class AiPaperServiceImpl implements AiPaperService {
     private AiChatMessageService aiChatMessageService;
 
     @Autowired
-    private AiModelConfigService aiModelConfigService;
-
-    @Autowired
     private AiChatModelFactory aiChatModelFactory;
 
     @Override
-    public AiChatVO chat(String sessionId, String message, MultipartFile file) {
+    public AiChatVO chat(String sessionId, String message, String apiKey,
+                         String baseUrl, String model, BigDecimal temperature, MultipartFile file) {
         Long userId = requireUserId();
         requireSessionId(sessionId);
         boolean hasFile = file != null && !file.isEmpty();
         if (!hasFile && !StringUtils.hasText(message)) {
             throw new BusinessException("请输入问题或上传文件");
         }
+        if (!StringUtils.hasText(apiKey)) {
+            throw new BusinessException("请先填写 AI 模型的 API Key");
+        }
+        String effectiveBaseUrl = StringUtils.hasText(baseUrl) ? baseUrl.trim() : AiConstant.DEFAULT_BASE_URL;
+        if (!effectiveBaseUrl.startsWith("http://") && !effectiveBaseUrl.startsWith("https://")) {
+            throw new BusinessException("模型地址必须以 http:// 或 https:// 开头");
+        }
+        String effectiveModel = StringUtils.hasText(model) ? model.trim() : AiConstant.DEFAULT_MODEL;
+        BigDecimal effectiveTemperature = temperature == null
+                ? new BigDecimal(AiConstant.DEFAULT_TEMPERATURE)
+                : temperature;
+        if (effectiveTemperature.compareTo(BigDecimal.ZERO) < 0
+                || effectiveTemperature.compareTo(new BigDecimal(AiConstant.MAX_TEMPERATURE)) > 0) {
+            throw new BusinessException("温度必须在 0 到 2 之间");
+        }
 
         String effectiveMessage = StringUtils.hasText(message) ? message.trim() : "请根据上传的文件生成一份试卷";
         List<AiChatMessage> memory = aiChatMessageService.listRecent(userId, sessionId, AiConstant.MAX_MEMORY_MESSAGES);
         String history = buildHistory(memory);
-        AiModelConfig modelConfig = aiModelConfigService.getByOwner(userId);
-        if (modelConfig == null || !StringUtils.hasText(modelConfig.getApiKey())) {
-            throw new BusinessException("请先配置 AI 模型的 API Key 和地址");
-        }
-        ChatModel chatModel = aiChatModelFactory.create(modelConfig);
+        // 模型配置完全由前端随请求传入，服务端不保存
+        ChatModel chatModel = aiChatModelFactory.create(
+                effectiveBaseUrl, apiKey.trim(), effectiveModel, effectiveTemperature);
 
         if (!hasFile) {
             // 没有上传文件时只做问答，禁止生成试卷
@@ -123,66 +130,6 @@ public class AiPaperServiceImpl implements AiPaperService {
         aiChatMessageService.clear(userId, sessionId);
     }
 
-    @Override
-    public AiModelConfigVO getConfig() {
-        Long userId = requireUserId();
-        AiModelConfig config = aiModelConfigService.getByOwner(userId);
-        if (config == null) {
-            AiModelConfigVO vo = new AiModelConfigVO();
-            vo.setBaseUrl(AiConstant.DEFAULT_BASE_URL);
-            vo.setModel(AiConstant.DEFAULT_MODEL);
-            vo.setTemperature(new BigDecimal(AiConstant.DEFAULT_TEMPERATURE));
-            vo.setHasApiKey(false);
-            return vo;
-        }
-        return toConfigVO(config);
-    }
-
-    @Override
-    public AiModelConfigVO saveConfig(AiModelConfigParam param) {
-        Long userId = requireUserId();
-        if (param == null) {
-            throw new BusinessException("配置不能为空");
-        }
-        AiModelConfig config = aiModelConfigService.getByOwner(userId);
-        boolean isNew = config == null;
-        if (isNew) {
-            config = new AiModelConfig();
-            config.setOwnerId(userId);
-        }
-
-        String baseUrl = StringUtils.hasText(param.getBaseUrl())
-                ? param.getBaseUrl().trim()
-                : AiConstant.DEFAULT_BASE_URL;
-        if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
-            throw new BusinessException("模型地址必须以 http:// 或 https:// 开头");
-        }
-        String model = StringUtils.hasText(param.getModel())
-                ? param.getModel().trim()
-                : AiConstant.DEFAULT_MODEL;
-        BigDecimal temperature = param.getTemperature() == null
-                ? new BigDecimal(AiConstant.DEFAULT_TEMPERATURE)
-                : param.getTemperature();
-        if (temperature.compareTo(BigDecimal.ZERO) < 0
-                || temperature.compareTo(new BigDecimal(AiConstant.MAX_TEMPERATURE)) > 0) {
-            throw new BusinessException("温度必须在 0 到 2 之间");
-        }
-
-        String apiKey = StringUtils.hasText(param.getApiKey())
-                ? param.getApiKey().trim()
-                : config.getApiKey();
-        if (isNew && !StringUtils.hasText(apiKey)) {
-            throw new BusinessException("请填写 API Key");
-        }
-
-        config.setBaseUrl(baseUrl);
-        config.setModel(model);
-        config.setTemperature(temperature);
-        config.setApiKey(apiKey);
-        aiModelConfigService.saveOrUpdate(config);
-        return toConfigVO(config);
-    }
-
     private Long requireUserId() {
         Long userId = PapergenContext.getUserId();
         if (userId == null) {
@@ -224,15 +171,6 @@ public class AiPaperServiceImpl implements AiPaperService {
             history.append(roleLabel).append("：").append(content).append('\n');
         }
         return history.toString();
-    }
-
-    private AiModelConfigVO toConfigVO(AiModelConfig config) {
-        AiModelConfigVO vo = new AiModelConfigVO();
-        vo.setBaseUrl(config.getBaseUrl());
-        vo.setModel(config.getModel());
-        vo.setTemperature(config.getTemperature());
-        vo.setHasApiKey(StringUtils.hasText(config.getApiKey()));
-        return vo;
     }
 
     private String buildReply(PaperImportVO paper) {

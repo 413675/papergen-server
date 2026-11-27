@@ -4,10 +4,8 @@ import com.papergen.generate.ai.AiChatModelFactory;
 import com.papergen.generate.constant.UserConstant;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.papergen.generate.domain.entity.AiChatMessage;
-import com.papergen.generate.domain.entity.AiModelConfig;
 import com.papergen.generate.domain.entity.SysUser;
 import com.papergen.generate.mapper.AiChatMessageMapper;
-import com.papergen.generate.service.AiModelConfigService;
 import com.papergen.generate.service.SysUserService;
 import com.papergen.generate.util.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,13 +24,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -88,9 +86,6 @@ class AiPaperIntegrationTest {
     @Autowired
     private AiChatMessageMapper aiChatMessageMapper;
 
-    @Autowired
-    private AiModelConfigService aiModelConfigService;
-
     @MockitoBean
     private AiChatModelFactory aiChatModelFactory;
 
@@ -112,16 +107,8 @@ class AiPaperIntegrationTest {
         testerUserId = user.getSysUserId();
         token = jwtUtil.generateToken(user);
 
-        AiModelConfig config = new AiModelConfig();
-        config.setOwnerId(testerUserId);
-        config.setBaseUrl("https://api.deepseek.com");
-        config.setApiKey("test-key");
-        config.setModel("deepseek-chat");
-        config.setTemperature(new BigDecimal("0.2"));
-        aiModelConfigService.save(config);
-
         chatModel = Mockito.mock(ChatModel.class);
-        when(aiChatModelFactory.create(any(AiModelConfig.class))).thenReturn(chatModel);
+        when(aiChatModelFactory.create(anyString(), anyString(), anyString(), any())).thenReturn(chatModel);
     }
 
     @Test
@@ -135,6 +122,7 @@ class AiPaperIntegrationTest {
                         .file(file)
                         .param("sessionId", "session-test-1")
                         .param("message", "整理成可答题的试卷")
+                        .param("apiKey", "test-key")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
@@ -171,6 +159,7 @@ class AiPaperIntegrationTest {
         mockMvc.perform(multipart("/v1/ai/chat")
                         .file(file)
                         .param("sessionId", "session-test-2")
+                        .param("apiKey", "test-key")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
@@ -185,6 +174,7 @@ class AiPaperIntegrationTest {
         mockMvc.perform(multipart("/v1/ai/chat")
                         .param("sessionId", "session-test-3")
                         .param("message", "什么是指针？")
+                        .param("apiKey", "test-key")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
