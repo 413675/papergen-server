@@ -41,9 +41,9 @@ public class SysUser extends BaseModel {
     private String displayName;
 
     /**
-     * teacher-教师 | admin-管理员
+     * user-普通用户 | teacher-教师 | admin-管理员
      */
-    @Schema(description = "teacher-教师 | admin-管理员")
+    @Schema(description = "user-普通用户 | teacher-教师 | admin-管理员")
     private String role;
 
     /**

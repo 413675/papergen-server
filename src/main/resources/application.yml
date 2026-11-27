@@ -17,6 +17,11 @@ spring:
       max-lifetime: 1800000
   jackson:
     default-property-inclusion: non_null
+  servlet:
+    multipart:
+      # 试卷导入文件大小限制
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 # MyBatis Plus 配置
 mybatis-plus:
@@ -26,6 +31,21 @@ mybatis-plus:
   mapperLocations: classpath*:mapper/**/*Mapper.xml
   # 加载全局的配置文件
   configLocation: classpath:mybatis/mybatis-config.xml
+
+# 认证与验证码
+papergen:
+  jwt:
+    secret: ${PAPERGEN_JWT_SECRET:papergen-local-dev-secret-change-me-2026}
+    issuer: papergen
+    # 令牌有效期（分钟），默认 7 天
+    expire-minutes: 10080
+    # 前端保存 JWT 的 Cookie 名称
+    cookie-name: papergen_token
+  captcha:
+    # 验证码有效期（秒）
+    expire-seconds: 120
+    # 滑块允许误差（像素）
+    tolerance: 5
 
 # 管理端点配置
 management:

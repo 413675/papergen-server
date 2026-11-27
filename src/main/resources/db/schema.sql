@@ -17,8 +17,8 @@ CREATE TABLE sys_user (
     username      varchar(64)   NOT NULL,
     password_hash varchar(255)  NOT NULL,
     display_name  varchar(64),
-    role          varchar(16)   NOT NULL DEFAULT 'teacher'
-                  CHECK (role IN ('teacher', 'admin')),          -- teacher-教师 | admin-管理员
+    role          varchar(16)   NOT NULL DEFAULT 'user'
+                  CHECK (role IN ('user', 'teacher', 'admin')),  -- user-普通用户 | teacher-教师 | admin-管理员
     status        smallint      NOT NULL DEFAULT 1,              -- 1-正常 | 0-禁用
     create_by     bigint,
     create_time   timestamptz   NOT NULL DEFAULT now(),
@@ -30,7 +30,7 @@ COMMENT ON COLUMN sys_user.sys_user_id IS '主键';
 COMMENT ON COLUMN sys_user.username IS '登录账号';
 COMMENT ON COLUMN sys_user.password_hash IS '密码哈希';
 COMMENT ON COLUMN sys_user.display_name IS '显示名称';
-COMMENT ON COLUMN sys_user.role IS 'teacher-教师 | admin-管理员';
+COMMENT ON COLUMN sys_user.role IS 'user-普通用户 | teacher-教师 | admin-管理员';
 COMMENT ON COLUMN sys_user.status IS '1-正常 | 0-禁用';
 COMMENT ON COLUMN sys_user.create_by IS '创建人';
 COMMENT ON COLUMN sys_user.create_time IS '创建时间';
