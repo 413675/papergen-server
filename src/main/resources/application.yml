@@ -1,16 +1,14 @@
 server:
-  # 本地默认 11800；Vercel 容器会注入 $PORT
-  port: ${PORT:11800}
+  port: 11800
 
 spring:
   application:
     name: papergen-server
   datasource:
     driver-class-name: org.postgresql.Driver
-    # 本地 PostgreSQL 16，库名 papergen；部署时通过 DB_URL 等环境变量覆盖
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/papergen}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:123456}
+    url: jdbc:postgresql://localhost:5432/papergen?stringtype=unspecified
+    username: postgres
+    password: 123456
     hikari:
       pool-name: papergen-hikari
       maximum-pool-size: 5
@@ -23,12 +21,13 @@ spring:
 # MyBatis Plus 配置
 mybatis-plus:
   # 搜索指定包别名
-  typeAliasesPackage: com.papergen.**.domain
+  typeAliasesPackage: com.papergen.generate.domain.entity
   # 配置mapper的扫描，找到所有的mapper.xml映射文件
   mapperLocations: classpath*:mapper/**/*Mapper.xml
   # 加载全局的配置文件
   configLocation: classpath:mybatis/mybatis-config.xml
 
+# 管理端点配置
 management:
   endpoints:
     web:

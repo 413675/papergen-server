@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.papergen.generate.mapper.ExamRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.papergen.generate.domain.entity.ExamRecord">
+            <id property="examRecordId" column="exam_record_id" />
+            <result property="paperId" column="paper_id" />
+            <result property="ownerId" column="owner_id" />
+            <result property="status" column="status" />
+            <result property="score" column="score" />
+            <result property="totalScore" column="total_score" />
+            <result property="startedAt" column="started_at" />
+            <result property="submittedAt" column="submitted_at" />
+            <result property="createBy" column="create_by" />
+            <result property="createTime" column="create_time" />
+            <result property="updateBy" column="update_by" />
+            <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        exam_record_id,paper_id,owner_id,status,score,total_score,
+        started_at,submitted_at,create_by,create_time,update_by,
+        update_time
+    </sql>
+</mapper>

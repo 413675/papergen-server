@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.papergen.generate.mapper.QuestionMapper">
+
+    <resultMap id="BaseResultMap" type="com.papergen.generate.domain.entity.Question">
+            <id property="questionId" column="question_id" />
+            <result property="ownerId" column="owner_id" />
+            <result property="sourceDocumentId" column="source_document_id" />
+            <result property="subject" column="subject" />
+            <result property="type" column="type" />
+            <result property="stem" column="stem" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler" />
+            <result property="stemText" column="stem_text" />
+            <result property="analysis" column="analysis" />
+            <result property="defaultScore" column="default_score" />
+            <result property="createBy" column="create_by" />
+            <result property="createTime" column="create_time" />
+            <result property="updateBy" column="update_by" />
+            <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        question_id,owner_id,source_document_id,subject,type,stem,
+        stem_text,analysis,default_score,create_by,create_time,
+        update_by,update_time
+    </sql>
+</mapper>

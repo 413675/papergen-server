@@ -136,7 +136,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>com.papergen.PapergenServerApplication</mainClass>
+                    <mainClass>com.papergen.generate.PapergenServerApplication</mainClass>
                 </configuration>
                 <executions>
                     <execution>

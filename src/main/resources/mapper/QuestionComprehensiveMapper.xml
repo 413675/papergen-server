@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.papergen.generate.mapper.QuestionComprehensiveMapper">
+
+    <resultMap id="BaseResultMap" type="com.papergen.generate.domain.entity.QuestionComprehensive">
+            <id property="questionComprehensiveId" column="question_comprehensive_id" />
+            <result property="questionId" column="question_id" />
+            <result property="material" column="material" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler" />
+            <result property="subQuestions" column="sub_questions" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler" />
+            <result property="referenceAnswer" column="reference_answer" />
+            <result property="createBy" column="create_by" />
+            <result property="createTime" column="create_time" />
+            <result property="updateBy" column="update_by" />
+            <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        question_comprehensive_id,question_id,material,sub_questions,reference_answer,create_by,
+        create_time,update_by,update_time
+    </sql>
+</mapper>
