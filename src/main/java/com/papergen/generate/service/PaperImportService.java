@@ -12,4 +12,9 @@ public interface PaperImportService {
      * 解析导入文件，生成草稿试卷、题目与导入任务
      */
     PaperImportVO importPaper(MultipartFile file);
+
+    /**
+     * 导入已经生成的试卷 JSON（AI 导卷场景）
+     */
+    PaperImportVO importPaper(String rawJson, String fileName);
 }

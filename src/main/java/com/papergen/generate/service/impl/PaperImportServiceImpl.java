@@ -116,18 +116,38 @@ public class PaperImportServiceImpl implements PaperImportService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PaperImportVO importPaper(MultipartFile file) {
+        Long userId = requireUserId();
+        // 先读文件并完成全部校验，避免无效数据落库
+        String rawJson = readFile(file);
+        return doImport(userId, rawJson, file.getOriginalFilename(), file.getSize());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PaperImportVO importPaper(String rawJson, String fileName) {
+        Long userId = requireUserId();
+        String content = rawJson == null ? "" : rawJson;
+        if (content.startsWith("\uFEFF")) {
+            content = content.substring(1);
+        }
+        String name = StringUtils.hasText(fileName) ? fileName : "ai-generated-paper.json";
+        return doImport(userId, content, name, content.getBytes(StandardCharsets.UTF_8).length);
+    }
+
+    private Long requireUserId() {
         Long userId = PapergenContext.getUserId();
         if (userId == null) {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "请先登录");
         }
+        return userId;
+    }
 
-        // 先读文件并完成全部校验，避免无效数据落库
-        String rawJson = readFile(file);
+    private PaperImportVO doImport(Long userId, String rawJson, String fileName, long fileSize) {
         PaperImportParam param = parse(rawJson);
         validate(param);
 
-        SourceDocument document = saveSourceDocument(userId, file, rawJson);
-        GenerationTask task = saveTask(userId, document.getSourceDocumentId(), file.getOriginalFilename());
+        SourceDocument document = saveSourceDocument(userId, fileName, fileSize, rawJson);
+        GenerationTask task = saveTask(userId, document.getSourceDocumentId(), fileName);
 
         Paper paper = savePaper(userId, param.getPaper());
 
@@ -365,13 +385,13 @@ public class PaperImportServiceImpl implements PaperImportService {
         }
     }
 
-    private SourceDocument saveSourceDocument(Long userId, MultipartFile file, String rawJson) {
+    private SourceDocument saveSourceDocument(Long userId, String fileName, long fileSize, String rawJson) {
         SourceDocument document = new SourceDocument();
         document.setOwnerId(userId);
-        document.setFileName(file.getOriginalFilename());
+        document.setFileName(fileName);
         document.setStorage(SourceConstant.STORAGE_INLINE);
         document.setMimeType("application/json");
-        document.setFileSize(file.getSize());
+        document.setFileSize(fileSize);
         document.setContentText(rawJson);
         document.setStatus(SourceConstant.STATUS_PARSED);
         sourceDocumentService.save(document);

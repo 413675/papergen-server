@@ -50,6 +50,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -486,7 +487,7 @@ public class PaperExamServiceImpl implements PaperExamService {
         }
         String subject = param.getSubject().trim();
 
-        // 取当前用户全部错题（已按最近错误时间倒序）
+        // 取当前用户全部错题作为候选池
         List<WrongQuestion> wrongQuestions = wrongQuestionService.lambdaQuery()
                 .eq(WrongQuestion::getOwnerId, userId)
                 .orderByDesc(WrongQuestion::getLastWrongTime)
@@ -521,7 +522,10 @@ public class PaperExamServiceImpl implements PaperExamService {
                 && (param.getDurationMinutes() < 1 || param.getDurationMinutes() > 600)) {
             throw new BusinessException("答题时长需在 1~600 分钟之间");
         }
-        List<Question> selected = matched.subList(0, limit);
+        List<Question> selected = new ArrayList<>(matched);
+        // 随机抽取题目并打乱顺序，避免每次重组都是同样的题目和顺序
+        Collections.shuffle(selected);
+        selected = selected.subList(0, limit);
 
         String title = StringUtils.hasText(param.getTitle())
                 ? param.getTitle().trim()
@@ -549,7 +553,7 @@ public class PaperExamServiceImpl implements PaperExamService {
         PaperPart part = new PaperPart();
         part.setPaperId(paper.getPaperId());
         part.setTitle("错题重组（" + subject + "）");
-        part.setInstruction("以下题目来自你的错题本，按最近错误时间排序");
+        part.setInstruction("以下题目从该科目错题中随机抽取");
         part.setSortOrder(0);
         paperPartService.save(part);
 

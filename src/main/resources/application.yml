@@ -17,6 +17,16 @@ spring:
       max-lifetime: 1800000
   jackson:
     default-property-inclusion: non_null
+  ai:
+    # 模型由用户配置动态构建，关闭 starter 内的自动装配，避免启动时强制要求 api-key
+    model:
+      chat: none
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
   servlet:
     multipart:
       # 试卷导入文件大小限制

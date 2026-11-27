@@ -142,8 +142,23 @@ class PaperImportIntegrationTest {
 
     private String token;
 
+    private Long testerUserId;
+
+    private long paperCountBefore;
+
+    private long paperPartCountBefore;
+
+    private long questionCountBefore;
+
+    private long paperQuestionCountBefore;
+
     @BeforeEach
     void setUp() {
+        paperCountBefore = paperMapper.selectCount(null);
+        paperPartCountBefore = paperPartMapper.selectCount(null);
+        questionCountBefore = questionMapper.selectCount(null);
+        paperQuestionCountBefore = paperQuestionMapper.selectCount(null);
+
         SysUser user = new SysUser();
         user.setUsername("import_tester");
         user.setPasswordHash("not-a-real-hash");
@@ -151,6 +166,7 @@ class PaperImportIntegrationTest {
         user.setRole(UserConstant.DEFAULT_ROLE);
         user.setStatus(UserConstant.STATUS_ENABLED);
         sysUserService.save(user);
+        testerUserId = user.getSysUserId();
         token = jwtUtil.generateToken(user);
     }
 
@@ -164,12 +180,15 @@ class PaperImportIntegrationTest {
                 .andExpect(jsonPath("$.data.questionCount").value(6))
                 .andExpect(jsonPath("$.data.totalScore").value(33));
 
-        assertEquals(1L, paperMapper.selectCount(null));
-        assertEquals(2L, paperPartMapper.selectCount(null));
-        assertEquals(6L, questionMapper.selectCount(null));
-        assertEquals(6L, paperQuestionMapper.selectCount(null));
+        assertEquals(paperCountBefore + 1, paperMapper.selectCount(null));
+        assertEquals(paperPartCountBefore + 2, paperPartMapper.selectCount(null));
+        assertEquals(questionCountBefore + 6, questionMapper.selectCount(null));
+        assertEquals(paperQuestionCountBefore + 6, paperQuestionMapper.selectCount(null));
 
-        Paper paper = paperMapper.selectList(null).get(0);
+        Paper paper = paperMapper.selectList(null).stream()
+                .filter(item -> testerUserId.equals(item.getOwnerId()))
+                .findFirst()
+                .orElseThrow();
         assertEquals(PaperConstant.STATUS_DRAFT, paper.getStatus());
         assertEquals(6, paper.getQuestionCount());
         assertEquals(0, paper.getTotalScore().compareTo(new java.math.BigDecimal("33")));
@@ -186,8 +205,8 @@ class PaperImportIntegrationTest {
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.msg", containsString("不在选项中")));
 
-        assertEquals(0L, paperMapper.selectCount(null));
-        assertEquals(0L, questionMapper.selectCount(null));
+        assertEquals(paperCountBefore, paperMapper.selectCount(null));
+        assertEquals(questionCountBefore, questionMapper.selectCount(null));
     }
 
     @Test
