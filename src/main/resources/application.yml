@@ -1,14 +1,16 @@
 server:
-  port: 11800
+  # Vercel 容器会注入 $PORT，本地不设时回落到 11800
+  port: ${PORT:11800}
 
 spring:
   application:
     name: papergen-server
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/papergen?stringtype=unspecified
-    username: postgres
-    password: 123456
+    # 本地默认连 localhost；线上通过 DB_URL / DB_USERNAME / DB_PASSWORD 覆盖
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/papergen?stringtype=unspecified}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
     hikari:
       pool-name: papergen-hikari
       maximum-pool-size: 5
@@ -18,15 +20,16 @@ spring:
   jackson:
     default-property-inclusion: non_null
   ai:
-    # 模型由用户配置动态构建，关闭 starter 内的自动装配，避免启动时强制要求 api-key
+    # 模型由后端按此配置动态构建，关闭 starter 内聊天/向量模型的自动装配
+    openai:
+      api-key: ${ZHIPU_API_KEY}
+      base-url: https://open.bigmodel.cn
+      completions-path: /api/paas/v4/chat/completions
+      model: ${ZHIPU_MODEL:glm-4.7-flash}
+      temperature: ${ZHIPU_TEMPERATURE:0.7}
     model:
       chat: none
       embedding: none
-      image: none
-      moderation: none
-      audio:
-        speech: none
-        transcription: none
   servlet:
     multipart:
       # 试卷导入文件大小限制

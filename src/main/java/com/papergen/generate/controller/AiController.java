@@ -3,6 +3,7 @@ package com.papergen.generate.controller;
 import com.papergen.generate.domain.model.R;
 import com.papergen.generate.domain.vo.AiChatMessageVO;
 import com.papergen.generate.domain.vo.AiChatVO;
+import com.papergen.generate.domain.vo.AiProgressVO;
 import com.papergen.generate.service.AiPaperService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -30,22 +30,24 @@ public class AiController {
     @Autowired
     private AiPaperService aiPaperService;
 
-    @Operation(summary = "AI 对话生成试卷", description = "携带文件时优先解析文件内容并生成试卷，返回 paperId 后可跳转答题；模型配置由前端传入且不落库")
+    @Operation(summary = "AI 对话生成试卷", description = "携带文件时优先解析文件内容并生成试卷，返回 paperId 后可跳转答题；模型配置来自服务端环境变量")
     @PostMapping(value = "/chat", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public R<AiChatVO> chat(@RequestParam("sessionId") String sessionId,
                             @RequestParam(value = "message", required = false) String message,
-                            @RequestParam(value = "apiKey", required = false) String apiKey,
-                            @RequestParam(value = "baseUrl", required = false) String baseUrl,
-                            @RequestParam(value = "model", required = false) String model,
-                            @RequestParam(value = "temperature", required = false) BigDecimal temperature,
                             @RequestParam(value = "file", required = false) MultipartFile file) {
-        return R.ok(aiPaperService.chat(sessionId, message, apiKey, baseUrl, model, temperature, file));
+        return R.ok(aiPaperService.chat(sessionId, message, file));
     }
 
     @Operation(summary = "对话记忆", description = "返回指定会话最近的对话消息")
     @GetMapping("/messages")
     public R<List<AiChatMessageVO>> messages(@RequestParam("sessionId") String sessionId) {
         return R.ok(aiPaperService.history(sessionId));
+    }
+
+    @Operation(summary = "AI 请求进度", description = "前端轮询，返回是否正在因模型访问量过大而重试")
+    @GetMapping("/progress")
+    public R<AiProgressVO> progress(@RequestParam("sessionId") String sessionId) {
+        return R.ok(aiPaperService.progress(sessionId));
     }
 
     @Operation(summary = "清空对话记忆")

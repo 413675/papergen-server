@@ -57,14 +57,19 @@ public class PaperAiWorkflow {
     private static final String KEY_PAPER_TITLE = "paperTitle";
     private static final String KEY_QUESTION_COUNT = "questionCount";
     private static final String KEY_TOTAL_SCORE = "totalScore";
+    private static final String KEY_OWNER_ID = "ownerId";
+    private static final String KEY_SESSION_ID = "sessionId";
 
     private static final List<String> STATE_KEYS = List.of(
             KEY_FILE_TEXT, KEY_CHAT_MODEL, KEY_ATTACHMENT_NAME, KEY_USER_MESSAGE, KEY_HISTORY, KEY_RESPONSE,
             KEY_PAPER_JSON, KEY_FEEDBACK, KEY_ERROR, KEY_ATTEMPT, KEY_PAPER_ID,
-            KEY_PAPER_TITLE, KEY_QUESTION_COUNT, KEY_TOTAL_SCORE);
+            KEY_PAPER_TITLE, KEY_QUESTION_COUNT, KEY_TOTAL_SCORE, KEY_OWNER_ID, KEY_SESSION_ID);
 
     @Autowired
     private PaperCreateTool paperCreateTool;
+
+    @Autowired
+    private AiChatInvoker aiChatInvoker;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -92,12 +97,15 @@ public class PaperAiWorkflow {
     /**
      * 执行一次完整工作流，失败时抛出业务异常
      */
-    public PaperImportVO run(ChatModel chatModel, String fileText, String userMessage, String history, String attachmentName) {
+    public PaperImportVO run(ChatModel chatModel, String fileText, String userMessage, String history,
+                             String attachmentName, Long ownerId, String sessionId) {
         if (!StringUtils.hasText(fileText)) {
             throw new BusinessException("未提供文件内容，无法生成试卷");
         }
         Map<String, Object> input = new java.util.HashMap<>();
         input.put(KEY_CHAT_MODEL, chatModel);
+        input.put(KEY_OWNER_ID, ownerId);
+        input.put(KEY_SESSION_ID, sessionId);
         input.put(KEY_FILE_TEXT, fileText == null ? "" : fileText);
         input.put(KEY_ATTACHMENT_NAME, attachmentName == null ? "" : attachmentName);
         input.put(KEY_USER_MESSAGE, userMessage == null ? "" : userMessage);
@@ -131,9 +139,9 @@ public class PaperAiWorkflow {
     /**
      * 纯问答：没有上传文件时只回答用户问题，不生成试卷
      */
-    public String answer(ChatModel chatModel, String userMessage, String history) {
+    public String answer(ChatModel chatModel, String userMessage, String history, Long ownerId, String sessionId) {
         if (chatModel == null) {
-            throw new BusinessException("未配置 AI 模型，请先在 AI 导卷页保存模型配置");
+            throw new BusinessException("AI 模型未初始化，请检查服务端模型配置");
         }
         StringBuilder prompt = new StringBuilder();
         if (StringUtils.hasText(history)) {
@@ -142,9 +150,11 @@ public class PaperAiWorkflow {
         prompt.append("【本次问题】\n").append(userMessage == null ? "" : userMessage);
         ChatResponse response;
         try {
-            response = chatModel.call(new Prompt(List.of(
+            response = aiChatInvoker.call(chatModel, new Prompt(List.of(
                     new SystemMessage(AiConstant.CHAT_SYSTEM_PROMPT),
-                    new UserMessage(prompt.toString()))));
+                    new UserMessage(prompt.toString()))), ownerId, sessionId);
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             throw new BusinessException("AI 调用失败，请检查模型配置：" + rootMessage(e));
         }
@@ -181,20 +191,25 @@ public class PaperAiWorkflow {
     private Map<String, Object> generateNode(OverAllState state) {
         ChatModel chatModel = state.value(KEY_CHAT_MODEL, (ChatModel) null);
         if (chatModel == null) {
-            throw new BusinessException("未配置 AI 模型，请先在 AI 导卷页保存模型配置");
+            throw new BusinessException("AI 模型未初始化，请检查服务端模型配置");
         }
         int attempt = state.value(KEY_ATTEMPT, 0) + 1;
         String userPrompt = buildUserPrompt(state);
+        Long ownerId = state.value(KEY_OWNER_ID, 0L);
+        String sessionId = state.value(KEY_SESSION_ID, "");
         ChatResponse response;
+        long startedAt = System.currentTimeMillis();
         try {
-            response = chatModel.call(new Prompt(List.of(
+            response = aiChatInvoker.call(chatModel, new Prompt(List.of(
                     new SystemMessage(systemPrompt),
-                    new UserMessage(userPrompt))));
+                    new UserMessage(userPrompt))), ownerId, sessionId);
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             throw new BusinessException("AI 调用失败，请检查模型配置：" + rootMessage(e));
         }
         String output = response.getResult().getOutput().getText();
-        log.info("AI 第 {} 次生成试卷 JSON", attempt);
+        log.info("AI 第 {} 次生成试卷 JSON，耗时 {} ms", attempt, System.currentTimeMillis() - startedAt);
         return Map.of(
                 KEY_RESPONSE, output == null ? "" : output,
                 KEY_ATTEMPT, attempt,

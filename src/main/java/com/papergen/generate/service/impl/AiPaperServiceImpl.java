@@ -1,6 +1,7 @@
 package com.papergen.generate.service.impl;
 
 import com.papergen.generate.ai.AiChatModelFactory;
+import com.papergen.generate.ai.AiProgressTracker;
 import com.papergen.generate.ai.FileTextExtractor;
 import com.papergen.generate.ai.PaperAiWorkflow;
 import com.papergen.generate.constant.AiConstant;
@@ -9,6 +10,7 @@ import com.papergen.generate.context.PapergenContext;
 import com.papergen.generate.domain.entity.AiChatMessage;
 import com.papergen.generate.domain.vo.AiChatMessageVO;
 import com.papergen.generate.domain.vo.AiChatVO;
+import com.papergen.generate.domain.vo.AiProgressVO;
 import com.papergen.generate.domain.vo.PaperImportVO;
 import com.papergen.generate.exception.BusinessException;
 import com.papergen.generate.service.AiChatMessageService;
@@ -42,43 +44,40 @@ public class AiPaperServiceImpl implements AiPaperService {
     @Autowired
     private AiChatModelFactory aiChatModelFactory;
 
+    @Autowired
+    private AiProgressTracker progressTracker;
+
     @Override
-    public AiChatVO chat(String sessionId, String message, String apiKey,
-                         String baseUrl, String model, BigDecimal temperature, MultipartFile file) {
+    public AiChatVO chat(String sessionId, String message, MultipartFile file) {
         Long userId = requireUserId();
         requireSessionId(sessionId);
         boolean hasFile = file != null && !file.isEmpty();
         if (!hasFile && !StringUtils.hasText(message)) {
             throw new BusinessException("请输入问题或上传文件");
         }
-        if (!StringUtils.hasText(apiKey)) {
-            throw new BusinessException("请先填写 AI 模型的 API Key");
+        progressTracker.generating(userId, sessionId);
+        try {
+            return doChat(userId, sessionId, message, file, hasFile);
+        } finally {
+            progressTracker.clear(userId, sessionId);
         }
-        String effectiveBaseUrl = StringUtils.hasText(baseUrl) ? baseUrl.trim() : AiConstant.DEFAULT_BASE_URL;
-        if (!effectiveBaseUrl.startsWith("http://") && !effectiveBaseUrl.startsWith("https://")) {
-            throw new BusinessException("模型地址必须以 http:// 或 https:// 开头");
-        }
-        String effectiveModel = StringUtils.hasText(model) ? model.trim() : AiConstant.DEFAULT_MODEL;
-        BigDecimal effectiveTemperature = temperature == null
-                ? new BigDecimal(AiConstant.DEFAULT_TEMPERATURE)
-                : temperature;
-        if (effectiveTemperature.compareTo(BigDecimal.ZERO) < 0
-                || effectiveTemperature.compareTo(new BigDecimal(AiConstant.MAX_TEMPERATURE)) > 0) {
-            throw new BusinessException("温度必须在 0 到 2 之间");
-        }
+    }
 
+    /**
+     * 执行对话：没有上传文件时只问答，上传文件时走导卷工作流
+     */
+    private AiChatVO doChat(Long userId, String sessionId, String message, MultipartFile file, boolean hasFile) {
         String effectiveMessage = StringUtils.hasText(message) ? message.trim() : "请根据上传的文件生成一份试卷";
         List<AiChatMessage> memory = aiChatMessageService.listRecent(userId, sessionId, AiConstant.MAX_MEMORY_MESSAGES);
         String history = buildHistory(memory);
-        // 模型配置完全由前端随请求传入，服务端不保存
-        ChatModel chatModel = aiChatModelFactory.create(
-                effectiveBaseUrl, apiKey.trim(), effectiveModel, effectiveTemperature);
+        // 模型配置来自服务端环境变量，密钥不经过前端
+        ChatModel chatModel = aiChatModelFactory.create();
 
         if (!hasFile) {
             // 没有上传文件时只做问答，禁止生成试卷
             saveMessage(userId, sessionId, AiConstant.ROLE_USER, effectiveMessage, null, null, null);
             try {
-                String answer = paperAiWorkflow.answer(chatModel, effectiveMessage, history);
+                String answer = paperAiWorkflow.answer(chatModel, effectiveMessage, history, userId, sessionId);
                 saveMessage(userId, sessionId, AiConstant.ROLE_ASSISTANT, answer, null, null, null);
                 AiChatVO vo = new AiChatVO();
                 vo.setReply(answer);
@@ -98,7 +97,8 @@ public class AiPaperServiceImpl implements AiPaperService {
                 null);
 
         try {
-            PaperImportVO paper = paperAiWorkflow.run(chatModel, fileText, effectiveMessage, history, attachmentName);
+            PaperImportVO paper = paperAiWorkflow.run(chatModel, fileText, effectiveMessage, history,
+                    attachmentName, userId, sessionId);
             String reply = buildReply(paper);
             saveMessage(userId, sessionId, AiConstant.ROLE_ASSISTANT, reply, null, null, paper.getPaperId());
             AiChatVO vo = new AiChatVO();
@@ -128,6 +128,13 @@ public class AiPaperServiceImpl implements AiPaperService {
         Long userId = requireUserId();
         requireSessionId(sessionId);
         aiChatMessageService.clear(userId, sessionId);
+    }
+
+    @Override
+    public AiProgressVO progress(String sessionId) {
+        Long userId = requireUserId();
+        requireSessionId(sessionId);
+        return progressTracker.get(userId, sessionId);
     }
 
     private Long requireUserId() {

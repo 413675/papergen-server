@@ -17,6 +17,18 @@ public final class AiConstant {
     /** 单次请求最多生成次数（首次 + 两次反思重试） */
     public static final int MAX_GENERATE_ATTEMPTS = 3;
 
+    /** 模型繁忙时的最多重试次数，对应 5s、10s、20s 的退避间隔 */
+    public static final int MAX_MODEL_RETRIES = 3;
+
+    /** AI 请求进度：空闲 */
+    public static final String PROGRESS_IDLE = "IDLE";
+
+    /** AI 请求进度：正常生成中 */
+    public static final String PROGRESS_GENERATING = "GENERATING";
+
+    /** AI 请求进度：模型繁忙，等待重试 */
+    public static final String PROGRESS_RETRYING = "RETRYING";
+
     /** 单次交给模型的文件文本上限 */
     public static final int MAX_FILE_TEXT_LENGTH = 30000;
 

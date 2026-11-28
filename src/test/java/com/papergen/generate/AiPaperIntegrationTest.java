@@ -30,7 +30,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -108,7 +107,7 @@ class AiPaperIntegrationTest {
         token = jwtUtil.generateToken(user);
 
         chatModel = Mockito.mock(ChatModel.class);
-        when(aiChatModelFactory.create(anyString(), anyString(), anyString(), any())).thenReturn(chatModel);
+        when(aiChatModelFactory.create()).thenReturn(chatModel);
     }
 
     @Test
@@ -122,7 +121,6 @@ class AiPaperIntegrationTest {
                         .file(file)
                         .param("sessionId", "session-test-1")
                         .param("message", "整理成可答题的试卷")
-                        .param("apiKey", "test-key")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
@@ -159,7 +157,6 @@ class AiPaperIntegrationTest {
         mockMvc.perform(multipart("/v1/ai/chat")
                         .file(file)
                         .param("sessionId", "session-test-2")
-                        .param("apiKey", "test-key")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
@@ -174,7 +171,6 @@ class AiPaperIntegrationTest {
         mockMvc.perform(multipart("/v1/ai/chat")
                         .param("sessionId", "session-test-3")
                         .param("message", "什么是指针？")
-                        .param("apiKey", "test-key")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
