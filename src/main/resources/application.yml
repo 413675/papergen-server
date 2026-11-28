@@ -46,10 +46,6 @@ mybatis-plus:
   mapperLocations: classpath*:mapper/**/*Mapper.xml
   # 加载全局的配置文件
   configLocation: classpath:mybatis/mybatis-config.xml
-  global-config:
-    db-config:
-      # 主键由数据库 identity 生成，不再用雪花 ID
-      id-type: auto
 
 # 认证与验证码
 papergen:
