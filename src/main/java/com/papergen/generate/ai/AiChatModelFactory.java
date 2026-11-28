@@ -32,7 +32,7 @@ public class AiChatModelFactory {
         if (!StringUtils.hasText(properties.getApiKey())) {
             throw new BusinessException("未配置 AI 模型的 API Key，请设置环境变量 ZHIPU_API_KEY");
         }
-        String baseUrl = properties.getBaseUrl();
+        String baseUrl = StringUtils.trimTrailingCharacter(properties.getBaseUrl(), '/');
         if (!StringUtils.hasText(baseUrl)
                 || (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))) {
             throw new BusinessException("AI 模型服务地址必须以 http:// 或 https:// 开头");
@@ -44,7 +44,7 @@ public class AiChatModelFactory {
         OpenAiApi openAiApi = OpenAiApi.builder()
                 .baseUrl(baseUrl)
                 .apiKey(properties.getApiKey())
-                .completionsPath(properties.getCompletionsPath())
+                .completionsPath(resolveCompletionsPath(baseUrl))
                 .restClientBuilder(RestClient.builder().requestFactory(requestFactory))
                 .build();
         OpenAiChatOptions options = OpenAiChatOptions.builder()
@@ -57,5 +57,19 @@ public class AiChatModelFactory {
                 .openAiApi(openAiApi)
                 .defaultOptions(options)
                 .build();
+    }
+
+    /**
+     * 智谱 GLM 的 OpenAI 兼容端点是 {baseUrl}/chat/completions，
+     * 而 Spring AI 默认补全路径是 /v1/chat/completions，直接拼会 404。
+     * 未显式覆盖路径时，按 baseUrl 识别智谱并自动纠正。
+     */
+    private String resolveCompletionsPath(String baseUrl) {
+        String configured = properties.getCompletionsPath();
+        boolean glm = baseUrl.contains("bigmodel.cn") || baseUrl.contains("z.ai");
+        if (glm && (!StringUtils.hasText(configured) || "/v1/chat/completions".equals(configured))) {
+            return "/chat/completions";
+        }
+        return StringUtils.hasText(configured) ? configured : "/v1/chat/completions";
     }
 }
