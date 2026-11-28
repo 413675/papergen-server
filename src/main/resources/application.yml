@@ -22,7 +22,8 @@ spring:
   ai:
     # 模型由后端按此配置动态构建，关闭 starter 内聊天/向量模型的自动装配
     openai:
-      api-key: ${ZHIPU_API_KEY}
+      # 给空默认值，未配 key 时应用仍能启动，调用 AI 时才提示
+      api-key: ${ZHIPU_API_KEY:}
       # base-url 与 completions-path 拼接后必须正好是 /api/paas/v4/chat/completions
       base-url: https://api.z.ai
       completions-path: /api/paas/v4/chat/completions
