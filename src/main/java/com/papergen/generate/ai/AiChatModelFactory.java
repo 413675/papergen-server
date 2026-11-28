@@ -22,8 +22,8 @@ public class AiChatModelFactory {
     /** 连接模型服务的超时时间 */
     private static final int CONNECT_TIMEOUT_MILLIS = 20_000;
 
-    /** 单次模型调用的读取超时时间，长试卷生成需要较长时间 */
-    private static final int READ_TIMEOUT_MILLIS = 540_000;
+    /** 单次模型调用的读取超时时间，需小于 Vercel 容器 300 秒上限，让后端先返回可读错误 */
+    private static final int READ_TIMEOUT_MILLIS = 290_000;
 
     @Autowired
     private AiModelProperties properties;
